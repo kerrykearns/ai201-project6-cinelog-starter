@@ -9,6 +9,12 @@ from models import Film, WatchlistEntry
 from services.collection_service import FilmNotFoundError
 
 
+class AlreadyInWatchlistError(Exception):
+    """Raised when a film is already on the user's watchlist."""
+
+    pass
+
+
 def add_to_watchlist(user_id, film_id):
     """
     Save a film to a user's watchlist.
@@ -27,6 +33,12 @@ def add_to_watchlist(user_id, film_id):
     if film is None:
         raise FilmNotFoundError(f"No film found with id '{film_id}'")
 
+    existing = WatchlistEntry.query.filter_by(user_id=user_id, film_id=film_id).first()
+    if existing:
+        raise AlreadyInWatchlistError(
+            f"Film '{film_id}' is already on this user's watchlist"
+        )
+
     entry = WatchlistEntry(user_id=user_id, film_id=film_id)
     db.session.add(entry)
     db.session.commit()
@@ -44,8 +56,7 @@ def get_watchlist(user_id):
         list[dict]: List of film dicts with watchlist metadata attached.
     """
     entries = (
-        WatchlistEntry.query
-        .filter_by(user_id=user_id)
+        WatchlistEntry.query.filter_by(user_id=user_id)
         .join(Film)
         .order_by(Film.title.asc())
         .all()
